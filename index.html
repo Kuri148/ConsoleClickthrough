@@ -222,6 +222,38 @@
 
   let current = START_SCREEN;
   const history = [];
+  let keypadBuffer = "";
+
+  function isDigitButton(id) {
+    return /^digit[0-9]$/.test(id);
+  }
+
+  function pressDigit(digit, screenDef) {
+    const code = screenDef.keypadCode;
+    const attempt = keypadBuffer + digit;
+
+    if (code.startsWith(attempt)) {
+      keypadBuffer = attempt;
+      if (keypadBuffer === code) {
+        keypadBuffer = "";
+        navigate(screenDef.keypadTarget);
+        return;
+      }
+    } else {
+      // Wrong digit: real hardware just beeps, no visual feedback. Restart
+      // the buffer, but let this digit begin a fresh attempt if it could
+      // (e.g. a mistyped 3-3-0-0-1 shouldn't require a full reset).
+      keypadBuffer = code.startsWith(digit) ? digit : "";
+    }
+
+    // No visual change on a digit press (matches real hardware) — just
+    // keep the debug panel current for testing.
+    debugPanel.textContent = JSON.stringify(
+      { screen: current, keypadBuffer, ...screenDef },
+      null,
+      2
+    );
+  }
 
   // Deterministic placeholder color per screen name, so scaffold testing
   // has visually distinct "photos" before real images exist.
@@ -246,10 +278,15 @@
       el.style.height = rect.height + "%";
       el.textContent = id;
 
-      const next = screenDef.buttons[id];
-      if (next) {
+      if (isDigitButton(id) && screenDef.keypadCode) {
         el.classList.add("active");
-        el.addEventListener("click", () => navigate(next));
+        el.addEventListener("click", () => pressDigit(id.slice(-1), screenDef));
+      } else {
+        const next = screenDef.buttons[id];
+        if (next) {
+          el.classList.add("active");
+          el.addEventListener("click", () => navigate(next));
+        }
       }
 
       frame.appendChild(el);
@@ -280,11 +317,12 @@
 
     renderButtons(screenDef);
 
-    debugPanel.textContent = JSON.stringify({ screen: current, ...screenDef }, null, 2);
+    debugPanel.textContent = JSON.stringify({ screen: current, keypadBuffer, ...screenDef }, null, 2);
   }
 
   function navigate(next) {
     if (next === current) return;
+    keypadBuffer = "";
     history.push(current);
     current = next;
     render();
@@ -292,11 +330,13 @@
 
   backBtn.addEventListener("click", () => {
     if (history.length === 0) return;
+    keypadBuffer = "";
     current = history.pop();
     render();
   });
 
   homeBtn.addEventListener("click", () => {
+    keypadBuffer = "";
     history.length = 0;
     current = START_SCREEN;
     render();

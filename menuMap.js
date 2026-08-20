@@ -9,6 +9,13 @@
 // This is placeholder/example data standing in for the real menu tree until
 // the photo shoot happens. Replace with the real screens + coordinates built
 // from the on-site shot log, without touching index.html's logic.
+//
+// digit0-digit9 are the physical numeric keypad buttons. They don't map to
+// a fixed next screen like other buttons — a screen opts into keypad
+// handling by setting `keypadCode` + `keypadTarget` (see "00-home" below).
+// index.html buffers presses and compares against keypadCode; a wrong digit
+// just resets the buffer (the real hardware beeps and shows nothing until
+// the full sequence matches).
 
 const BUTTON_LAYOUT = {
   up:         { top: 8,  left: 78, width: 10, height: 8 },
@@ -22,6 +29,17 @@ const BUTTON_LAYOUT = {
   settings:   { top: 4,  left: 44, width: 18, height: 8 },
   start:      { top: 90, left: 40, width: 20, height: 8 },
   stop:       { top: 90, left: 62, width: 20, height: 8 },
+
+  digit1: { top: 40, left: 42, width: 8, height: 8 },
+  digit2: { top: 40, left: 52, width: 8, height: 8 },
+  digit3: { top: 40, left: 62, width: 8, height: 8 },
+  digit4: { top: 50, left: 42, width: 8, height: 8 },
+  digit5: { top: 50, left: 52, width: 8, height: 8 },
+  digit6: { top: 50, left: 62, width: 8, height: 8 },
+  digit7: { top: 60, left: 42, width: 8, height: 8 },
+  digit8: { top: 60, left: 52, width: 8, height: 8 },
+  digit9: { top: 60, left: 62, width: 8, height: 8 },
+  digit0: { top: 70, left: 52, width: 8, height: 8 },
 };
 
 const MENU_MAP = {
@@ -35,6 +53,8 @@ const MENU_MAP = {
       programs: "02-programs-menu",
       settings: "03-settings-menu",
     },
+    keypadCode: "3001",
+    keypadTarget: "04-engineering-mode",
     description: "Home screen. Idle state — select a workout mode or open Programs/Settings.",
   },
 
@@ -98,6 +118,14 @@ const MENU_MAP = {
       back: "03-settings-menu",
     },
     description: "Incline calibration setting. Up/down adjust the value; Back saves and returns.",
+  },
+
+  "04-engineering-mode": {
+    image: "04-engineering-mode.jpg",
+    buttons: {
+      back: "00-home",
+    },
+    description: "Engineering/diagnostic mode. Hidden screen reached by entering 3-0-0-1 on the numeric keypad from the home screen.",
   },
 };
 
