@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Console Clickthrough</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #1a1d22;
+    --panel: #23262c;
+    --border: #3a3f47;
+    --text: #e8e8e8;
+    --text-dim: #9aa0a8;
+    --accent: #4f9dff;
+    --btn-inactive: rgba(255,255,255,0.06);
+    --btn-active: rgba(79,157,255,0.35);
+    --btn-active-border: #4f9dff;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+
+  #breadcrumb {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    min-height: 1.2em;
+  }
+
+  #console-frame {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  #screen-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  #screen-placeholder {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    gap: 6px;
+  }
+
+  #screen-placeholder .label {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  #screen-placeholder .sub {
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+
+  .button-overlay {
+    position: absolute;
+    border: 1px dashed rgba(255,255,255,0.25);
+    border-radius: 4px;
+    background: var(--btn-inactive);
+    font-size: 0.65rem;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    user-select: none;
+    transition: background 0.1s, border-color 0.1s;
+  }
+
+  .button-overlay.active {
+    background: var(--btn-active);
+    border: 1px solid var(--btn-active-border);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .button-overlay.active:hover {
+    background: rgba(79,157,255,0.5);
+  }
+
+  .button-overlay.active:active {
+    transform: scale(0.97);
+  }
+
+  #description {
+    max-width: 640px;
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  #controls {
+    max-width: 640px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  #controls button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  #controls button:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  #controls button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  #debug-toggle {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    margin-top: 20px;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none;
+    border: none;
+  }
+
+  #debug-panel {
+    display: none;
+    max-width: 640px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<h1>Console Clickthrough</h1>
+<div id="breadcrumb"></div>
+
+<div id="console-frame">
+  <img id="screen-image" alt="Console screen">
+  <div id="screen-placeholder">
+    <div class="label"></div>
+    <div class="sub">image not yet captured — placeholder</div>
+  </div>
+</div>
+
+<div id="description"></div>
+
+<div id="controls">
+  <button id="back-btn">&larr; Back</button>
+  <button id="home-btn">Reset to Home</button>
+</div>
+
+<button id="debug-toggle">show debug info</button>
+<div id="debug-panel"></div>
+
+<script src="menuMap.js"></script>
+<script>
+(function () {
+  const frame = document.getElementById("console-frame");
+  const img = document.getElementById("screen-image");
+  const placeholder = document.getElementById("screen-placeholder");
+  const placeholderLabel = placeholder.querySelector(".label");
+  const descriptionEl = document.getElementById("description");
+  const breadcrumbEl = document.getElementById("breadcrumb");
+  const backBtn = document.getElementById("back-btn");
+  const homeBtn = document.getElementById("home-btn");
+  const debugToggle = document.getElementById("debug-toggle");
+  const debugPanel = document.getElementById("debug-panel");
+
+  let current = START_SCREEN;
+  const history = [];
+
+  // Deterministic placeholder color per screen name, so scaffold testing
+  // has visually distinct "photos" before real images exist.
+  function colorForScreen(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 45%, 22%)`;
+  }
+
+  function renderButtons(screenDef) {
+    frame.querySelectorAll(".button-overlay").forEach((el) => el.remove());
+
+    for (const [id, rect] of Object.entries(BUTTON_LAYOUT)) {
+      const el = document.createElement("div");
+      el.className = "button-overlay";
+      el.style.top = rect.top + "%";
+      el.style.left = rect.left + "%";
+      el.style.width = rect.width + "%";
+      el.style.height = rect.height + "%";
+      el.textContent = id;
+
+      const next = screenDef.buttons[id];
+      if (next) {
+        el.classList.add("active");
+        el.addEventListener("click", () => navigate(next));
+      }
+
+      frame.appendChild(el);
+    }
+  }
+
+  function render() {
+    const screenDef = MENU_MAP[current];
+    if (!screenDef) {
+      console.error(`Unknown screen "${current}" in MENU_MAP`);
+      return;
+    }
+
+    img.src = `images/${screenDef.image}`;
+    img.style.display = "";
+    placeholder.style.display = "none";
+
+    img.onerror = () => {
+      img.style.display = "none";
+      placeholder.style.display = "flex";
+      placeholder.style.background = colorForScreen(current);
+      placeholderLabel.textContent = current;
+    };
+
+    descriptionEl.textContent = screenDef.description || "";
+    breadcrumbEl.textContent = history.concat(current).join(" › ");
+    backBtn.disabled = history.length === 0;
+
+    renderButtons(screenDef);
+
+    debugPanel.textContent = JSON.stringify({ screen: current, ...screenDef }, null, 2);
+  }
+
+  function navigate(next) {
+    if (next === current) return;
+    history.push(current);
+    current = next;
+    render();
+  }
+
+  backBtn.addEventListener("click", () => {
+    if (history.length === 0) return;
+    current = history.pop();
+    render();
+  });
+
+  homeBtn.addEventListener("click", () => {
+    history.length = 0;
+    current = START_SCREEN;
+    render();
+  });
+
+  debugToggle.addEventListener("click", () => {
+    const showing = debugPanel.style.display === "block";
+    debugPanel.style.display = showing ? "none" : "block";
+    debugToggle.textContent = showing ? "show debug info" : "hide debug info";
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
